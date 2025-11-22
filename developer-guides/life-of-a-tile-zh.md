@@ -1,47 +1,45 @@
-# Life of a Tile
+# 瓦片的生命周期
 
-This guide traces through what happens when you load a new tile. At a high level the processing consists of 3 parts:
+本指南将追踪加载新瓦片时所发生的过程。从宏观层面来看，整个处理过程包括三个部分：
 
-- [Event loop](#event-loop) responds to user interaction and updates the internal state of the map (current viewport, camera angle, etc.)
-- [Tile loading](#tile-loading) asynchronously fetches tiles, images, fonts, etc. needed by the current state of the map
-- [Render loop](#render-loop) renders the current state of the map to the screen
-
-Ideally the event loop and render frame run at 60 frames per second, and all of the heavy work of tile loading happens asynchronously inside a web worker.
+- [事件循环](#事件循环) 响应用户交互并更新地图的内部状态（当前视口、相机角度等）
+- [瓦片加载 ](#瓦片加载) 异步获取当前地图状态所需的瓦片、图像、字体等资源
+- [渲染循环](#渲染循环) 将地图的当前状态渲染到屏幕上
 
 理想情况下，事件循环和渲染帧以每秒60帧的速度运行，所有繁重的tile加载工作都在web worker内部异步进行。
 
-## Event Loop
+## 事件循环
 
 ```mermaid
 sequenceDiagram
-    actor user
+    actor 用户
     participant DOM
-    participant handler_manager
-    participant handler
-    participant camera
-    participant transform
-    participant map
+    participant 处理器管理器
+    participant 处理器
+    participant 相机
+    participant 变换
+    participant 地图
 
-    user->>camera: map#setCenter, map#panTo
-    camera->>transform: update
-    camera->>map: fire move event
-    map->>map: _render()
+    用户->>相机: map#setCenter, map#panTo
+    相机->>变换: 更新
+    相机->>地图: 触发移动事件
+    地图->>地图: _render()
 
-    user->>DOM: resize, pan,<br>click, scroll,<br>...
-    DOM->>handler_manager: DOM events
-    handler_manager->>handler: forward event
-    handler-->>handler_manager: HandlerResult
-    handler_manager->>transform: update
-    handler_manager->>map: fire move event
-    map->>map: _render()
+    用户->>DOM: 调整大小、平移、<br>点击、滚动、<br>...
+    DOM->>处理器管理器: DOM事件
+    处理器管理器->>处理器: 转发事件
+    处理器-->>处理器管理器: 处理结果
+    处理器管理器->>变换: 更新
+    处理器管理器->>地图: 触发移动事件
+    地图->>地图: _render()
 ```
 
-- [Transform](../src/geo/transform.ts) holds the current viewport details (pitch, zoom, bearing, bounds, etc.). Two places in the code update transform directly:
-  - [Camera](../src/ui/camera.ts) (parent class of [Map](../src/ui/map)) in response to explicit calls to [Camera#panTo](../src/ui/camera.ts#L207), [Camera#setCenter](../src/ui/camera.ts#L169)
-  - [HandlerManager](../src/ui/handler_manager.ts) in response to DOM events. It forwards those events to interaction processors that live in [src/ui/handler](../src/ui/handler), which accumulate a merged [HandlerResult](../src/ui/handler_manager.ts#L64) that kick off a render frame loop, decreasing the inertia and nudging map.transform by that amount on each frame from [HandlerManager#\_updateMapTransform()](../src/ui/handler_manager.ts#L413). That loop continues in the inertia decreases to 0.
+- [Transform](../src/geo/transform.ts) 存储当前视口的详细信息（倾斜角、缩放级别、方位角、边界等）。代码中有两个地方直接更新变换：
+  - [Camera](../src/ui/camera.ts) ([Map](../src/ui/map)的父类) 用于响应对 [Camera#panTo](../src/ui/camera.ts#L207), [Camera#setCenter](../src/ui/camera.ts#L169)的显式调用
+  - [HandlerManager](../src/ui/handler_manager.ts) 用于响应 DOM 事件。它将这些事件转发给位于 [src/ui/handler](../src/ui/handler),中的交互处理器，这些处理器会累积一个合并的[HandlerResult](../src/ui/handler_manager.ts#L64)，该结果会启动一个渲染帧循环，在, decreasing the inertia and nudging map.transform by that amount on each frame from [HandlerManager#\_updateMapTransform()](../src/ui/handler_manager.ts#L413). That loop continues in the inertia decreases to 0.
 - Both camera and handler_manager are responsible for firing `move`, `zoom`, `movestart`, `moveend`, ... events on the map after they update transform. Each of these events (along with style changes and data load events) triggers a call to [Map#\_render()](../src/ui/map.ts#L2480) which renders a single frame of the map.
 
-## Tile loading
+## 瓦片加载
 
 ```mermaid
 sequenceDiagram
@@ -151,7 +149,7 @@ sequenceDiagram
   - [TileManager#\_backfillDEM](../src/tile/tile_manager.ts#L275) copies the edge pixels to and from all neighboring tiles so that there are no rendering artifacts when each tile computes the slope up to the very edge of the tile.
   - Fire a `data {dataType: 'source'}` event on the source, which bubbles up to [TileManager](../src/tile/tile_manager.ts), [Style](../src/style/style.ts), and [Map](../src/ui/map.ts), which translates it to a `sourcedata` event and also calls [Map#\_update()](../src/ui/map.ts#L2443) which calls [Map#triggerRepaint()](../src/ui/map.ts#L2664) then [Map#\_render()](../src/ui/map.ts#L2480) which renders a new frame just like when user interaction triggers transform change.
 
-## Render loop
+## 渲染循环
 
 ```mermaid
 sequenceDiagram
