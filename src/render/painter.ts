@@ -110,7 +110,7 @@ export class Painter {
     viewportSegments: SegmentVector;
     quadTriangleIndexBuffer: IndexBuffer;
     tileBorderIndexBuffer: IndexBuffer;
-    _tileClippingMaskIDs: {[_: string]: number};
+    _tileClippingMaskIDs: { [_: string]: number };
     stencilClearMode: StencilMode;
     style: Style;
     options: PainterOptions;
@@ -125,7 +125,7 @@ export class Painter {
     nextStencilID: number;
     id: string;
     _showOverdrawInspector: boolean;
-    cache: {[_: string]: Program<any>};
+    cache: { [_: string]: Program<any> };
     crossTileSymbolIndex: CrossTileSymbolIndex;
     symbolFadeChange: number;
     debugOverlayTexture: Texture;
@@ -133,7 +133,7 @@ export class Painter {
     // this object stores the current camera-matrix and the last render time
     // of the terrain-facilitators. e.g. depth & coords framebuffers
     // every time the camera-matrix changes the terrain-facilitators will be redrawn.
-    terrainFacilitator: {dirty: boolean; matrix: mat4; renderTime: number};
+    terrainFacilitator: { dirty: boolean; matrix: mat4; renderTime: number };
 
     constructor(gl: WebGLRenderingContext | WebGL2RenderingContext, transform: IReadonlyTransform) {
         this.context = new Context(gl);
@@ -300,7 +300,9 @@ export class Painter {
         this._tileClippingMaskIDs = stencilRefs;
     }
 
-    _renderTileMasks(tileStencilRefs: {[_: string]: number}, tileIDs: Array<OverscaledTileID>, renderToTexture: boolean, useBorders: boolean) {
+    _renderTileMasks(tileStencilRefs: {
+        [_: string]: number;
+    }, tileIDs: Array<OverscaledTileID>, renderToTexture: boolean, useBorders: boolean) {
         const context = this.context;
         const gl = context.gl;
         const projection = this.style.projection;
@@ -315,7 +317,11 @@ export class Painter {
 
             const mesh = projection.getMeshFromTileID(this.context, tileID.canonical, useBorders, true, 'stencil');
 
-            const projectionData = transform.getProjectionData({overscaledTileID: tileID, applyGlobeMatrix: !renderToTexture, applyTerrainMatrix: true});
+            const projectionData = transform.getProjectionData({
+                overscaledTileID: tileID,
+                applyGlobeMatrix: !renderToTexture,
+                applyTerrainMatrix: true
+            });
 
             program.draw(context, gl.TRIANGLES, DepthMode.disabled,
                 // Tests will always pass, and ref value will be written to stencil buffer.
@@ -345,7 +351,11 @@ export class Painter {
             const terrainData = this.style.map.terrain && this.style.map.terrain.getTerrainData(tileID);
             const mesh = projection.getMeshFromTileID(this.context, tileID.canonical, true, true, 'raster');
 
-            const projectionData = transform.getProjectionData({overscaledTileID: tileID, applyGlobeMatrix: true, applyTerrainMatrix: true});
+            const projectionData = transform.getProjectionData({
+                overscaledTileID: tileID,
+                applyGlobeMatrix: true,
+                applyTerrainMatrix: true
+            });
 
             program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled,
                 ColorMode.disabled, CullFaceMode.backCCW, null,
@@ -368,7 +378,10 @@ export class Painter {
 
     stencilModeForClipping(tileID: OverscaledTileID): StencilMode {
         const gl = this.context.gl;
-        return new StencilMode({func: gl.EQUAL, mask: 0xFF}, this._tileClippingMaskIDs[tileID.key], 0x00, gl.KEEP, gl.KEEP, gl.REPLACE);
+        return new StencilMode({
+            func: gl.EQUAL,
+            mask: 0xFF
+        }, this._tileClippingMaskIDs[tileID.key], 0x00, gl.KEEP, gl.KEEP, gl.REPLACE);
     }
 
     /*
@@ -398,7 +411,10 @@ export class Painter {
             }
             const zToStencilMode = {};
             for (let i = 0; i < stencilValues; i++) {
-                zToStencilMode[i + minTileZ] = new StencilMode({func: gl.GEQUAL, mask: 0xFF}, i + this.nextStencilID, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE);
+                zToStencilMode[i + minTileZ] = new StencilMode({
+                    func: gl.GEQUAL,
+                    mask: 0xFF
+                }, i + this.nextStencilID, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE);
             }
             this.nextStencilID += stencilValues;
             return [zToStencilMode, coords];
@@ -422,8 +438,14 @@ export class Painter {
             const zToStencilModeHigh = {};
             const zToStencilModeLow = {};
             for (let i = 0; i < stencilValues; i++) {
-                zToStencilModeHigh[i + minTileZ] = new StencilMode({func: gl.GREATER, mask: 0xFF}, stencilValues + 1 + i, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE);
-                zToStencilModeLow[i + minTileZ] = new StencilMode({func: gl.GREATER, mask: 0xFF}, 1 + i, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE);
+                zToStencilModeHigh[i + minTileZ] = new StencilMode({
+                    func: gl.GREATER,
+                    mask: 0xFF
+                }, stencilValues + 1 + i, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE);
+                zToStencilModeLow[i + minTileZ] = new StencilMode({
+                    func: gl.GREATER,
+                    mask: 0xFF
+                }, 1 + i, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE);
             }
             this.nextStencilID = stencilValues * 2 + 1;
             return [
@@ -491,10 +513,13 @@ export class Painter {
         const layerIds = this.style._order;
         const tileManagers = this.style.tileManagers;
 
-        const coordsAscending: {[_: string]: Array<OverscaledTileID>} = {};
-        const coordsDescending: {[_: string]: Array<OverscaledTileID>} = {};
-        const coordsDescendingSymbol: {[_: string]: Array<OverscaledTileID>} = {};
-        const renderOptions: RenderOptions = {isRenderingToTexture: false, isRenderingGlobe: style.projection?.transitionState > 0};
+        const coordsAscending: { [_: string]: Array<OverscaledTileID> } = {};
+        const coordsDescending: { [_: string]: Array<OverscaledTileID> } = {};
+        const coordsDescendingSymbol: { [_: string]: Array<OverscaledTileID> } = {};
+        const renderOptions: RenderOptions = {
+            isRenderingToTexture: false,
+            isRenderingGlobe: style.projection?.transitionState > 0
+        };
 
         for (const id in tileManagers) {
             const tileManager = tileManagers[id];
@@ -654,6 +679,9 @@ export class Painter {
         drawCoords(this, this.style.map.terrain);
     }
 
+    /**
+     * TODO 主要从这里进行 debugger 调试
+     */
     renderLayer(painter: Painter, tileManager: TileManager, layer: StyleLayer, coords: Array<OverscaledTileID>, renderOptions: RenderOptions) {
         if (layer.isHidden(this.transform.zoom)) return;
         if (layer.type !== 'background' && layer.type !== 'custom' && !(coords || []).length) return;
