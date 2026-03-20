@@ -84,14 +84,17 @@ export class RasterDEMTileSource extends RasterTileSource implements Source {
                     baseShift: this.baseShift
                 };
 
+                if (tile.actor && tile.state !== 'expired' && tile.state !== 'reloading') {
+                    return;
+                }
                 if (!tile.actor || tile.state === 'expired') {
                     tile.actor = this.dispatcher.getActor();
-                    const data = await tile.actor.sendAsync({type: MessageType.loadDEMTile, data: params});
-                    tile.dem = data;
-                    tile.needsHillshadePrepare = true;
-                    tile.needsTerrainPrepare = true;
-                    tile.state = 'loaded';
                 }
+                const data = await tile.actor.sendAsync({type: MessageType.loadDEMTile, data: params});
+                tile.dem = data;
+                tile.needsHillshadePrepare = true;
+                tile.needsTerrainPrepare = true;
+                tile.state = 'loaded';
             }
         } catch (err) {
             delete tile.abortController;
@@ -117,7 +120,7 @@ export class RasterDEMTileSource extends RasterTileSource implements Source {
         return browser.getImageData(img, 1);
     }
 
-    _getNeighboringTiles(tileID: OverscaledTileID) {
+    _getNeighboringTiles(tileID: OverscaledTileID): Record<string, {backfilled: boolean}> {
         const canonical = tileID.canonical;
         const dim = Math.pow(2, canonical.z);
 
@@ -126,7 +129,7 @@ export class RasterDEMTileSource extends RasterTileSource implements Source {
         const nx = (canonical.x + 1 + dim) % dim;
         const nxw = canonical.x + 1 === dim ? tileID.wrap + 1 : tileID.wrap;
 
-        const neighboringTiles = {};
+        const neighboringTiles: Record<string, {backfilled: boolean}> = {};
         // add adjacent tiles
         neighboringTiles[new OverscaledTileID(tileID.overscaledZ, pxw, canonical.z, px, canonical.y).key] = {backfilled: false};
         neighboringTiles[new OverscaledTileID(tileID.overscaledZ, nxw, canonical.z, nx, canonical.y).key] = {backfilled: false};

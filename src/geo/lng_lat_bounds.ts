@@ -230,7 +230,7 @@ export class LngLatBounds {
      * llb.toArray(); // = [[-73.9876, 40.7661], [-73.9397, 40.8002]]
      * ```
      */
-    toArray() {
+    toArray(): [[number, number], [number, number]] {
         return [this._sw.toArray(), this._ne.toArray()];
     }
 
@@ -290,18 +290,29 @@ export class LngLatBounds {
     /**
      * Checks if this bounding box intersects with another bounding box.
      *
+     * Returns true if the bounding boxes share any area, including cases where
+     * they only touch along an edge or at a corner.
+     *
      * This method properly handles cases where either or both bounding boxes cross
      * the antimeridian (date line).
      */
     intersects(other: LngLatBoundsLike): boolean {
         other = LngLatBounds.convert(other);
 
-        const latIntersects = !(
-            other.getNorth() < this.getSouth() ||
-            other.getSouth() > this.getNorth()
-        );
+        const latIntersects =
+            other.getNorth() >= this.getSouth() &&
+            other.getSouth() <= this.getNorth();
 
         if (!latIntersects) return false;
+
+        // Check if either bound covers the full world (|span| >= 360°)
+        // This must be done before wrapping to preserve the span information
+        const thisSpan = Math.abs(this.getEast() - this.getWest());
+        const otherSpan = Math.abs(other.getEast() - other.getWest());
+
+        if (thisSpan >= 360 || otherSpan >= 360) {
+            return true;
+        }
 
         // Normalize longitudes to [-180, 180] range
         const thisWest = wrap(this.getWest(), -180, 180);
@@ -310,6 +321,7 @@ export class LngLatBounds {
         const otherEast = wrap(other.getEast(), -180, 180);
 
         // Check if either bounds wraps around the antimeridian
+        // Use strict inequality: equal values indicate zero-width bounds (e.g., a point), not wrapping
         const thisWraps = thisWest > thisEast;
         const otherWraps = otherWest > otherEast;
 
@@ -329,10 +341,7 @@ export class LngLatBounds {
         }
 
         // Neither wraps: standard intersection check
-        return !(
-            otherWest > thisEast ||
-            otherEast < thisWest
-        );
+        return otherWest <= thisEast && otherEast >= thisWest;
     }
 
     /**

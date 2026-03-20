@@ -40,11 +40,13 @@ export type WorkerTileParameters = TileParameters & {
     collectResourceTiming?: boolean;
     returnDependencies?: boolean;
     subdivisionGranularity: SubdivisionGranularitySetting;
+    encoding?: string;
     /**
      * Provide this property when the requested tile has a higher canonical Z than source maxzoom.
      * This allows the worker to know that it needs to overzoom from a source tile.
      */
     overzoomParameters?: OverzoomParameters;
+    etag?: string;
 };
 
 /**
@@ -70,7 +72,7 @@ export type WorkerDEMTileParameters = TileParameters & {
 /**
  * The worker tile's result type
  */
-export type WorkerTileResult = ExpiryData & {
+export type WorkerTileWithData = ExpiryData & {
     buckets: Array<Bucket>;
     imageAtlas: ImageAtlas;
     dashPositions: Record<string, DashEntry>;
@@ -78,6 +80,7 @@ export type WorkerTileResult = ExpiryData & {
     featureIndex: FeatureIndex;
     collisionBoxArray: CollisionBoxArray;
     rawTileData?: ArrayBuffer;
+    encoding?: string;
     resourceTiming?: Array<PerformanceResourceTiming>;
     // Only used for benchmarking:
     glyphMap?: {
@@ -89,7 +92,15 @@ export type WorkerTileResult = ExpiryData & {
         [_: string]: StyleImage;
     } | null;
     glyphPositions?: GlyphPositions | null;
+    etagUnmodified?: false;
 };
+
+export type WorkerTileWithoutData = ExpiryData & {
+    etagUnmodified: true;  // Strict for type narrowing
+    resourceTiming?: Array<PerformanceResourceTiming>;
+};
+
+export type WorkerTileResult = WorkerTileWithData | WorkerTileWithoutData;
 
 /**
  * This is how the @see {@link WorkerSource} constructor should look like.

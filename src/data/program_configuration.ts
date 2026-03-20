@@ -28,8 +28,8 @@ import type {
     FormattedSection
 } from '@maplibre/maplibre-gl-style-spec';
 import type {FeatureStates} from '../source/source_state';
-import type {VectorTileLayer} from '@mapbox/vector-tile';
 import type {DashEntry} from '../render/line_atlas';
+import type {VectorTileLayerLike} from '@maplibre/vt-pbf';
 
 export type BinderUniform = {
     name: string;
@@ -187,7 +187,7 @@ class CrossFadedConstantBinder implements UniformBinder {
     }
 
     getBinding(context: Context, location: WebGLUniformLocation, name: string): Partial<Uniform<any>> {
-        return (name.substr(0, 9) === 'u_pattern' || name.substr(0, 12) === 'u_dasharray_') ?
+        return (name.startsWith('u_pattern') || name.startsWith('u_dasharray_')) ?
             new Uniform4f(context, location) :
             new Uniform1f(context, location);
     }
@@ -244,7 +244,7 @@ class SourceExpressionBinder implements AttributeBinder {
     }
 
     upload(context: Context) {
-        if (this.paintVertexArray && this.paintVertexArray.arrayBuffer) {
+        if (this.paintVertexArray?.arrayBuffer.byteLength) {
             if (this.paintVertexBuffer && this.paintVertexBuffer.buffer) {
                 this.paintVertexBuffer.updateData(this.paintVertexArray);
             } else {
@@ -320,7 +320,7 @@ class CompositeExpressionBinder implements AttributeBinder, UniformBinder {
     }
 
     upload(context: Context) {
-        if (this.paintVertexArray && this.paintVertexArray.arrayBuffer) {
+        if (this.paintVertexArray?.arrayBuffer.byteLength) {
             if (this.paintVertexBuffer && this.paintVertexBuffer.buffer) {
                 this.paintVertexBuffer.updateData(this.paintVertexArray);
             } else {
@@ -407,7 +407,7 @@ abstract class CrossFadedBinder<T> implements AttributeBinder {
     }
 
     upload(context: Context) {
-        if (this.zoomInPaintVertexArray && this.zoomInPaintVertexArray.arrayBuffer && this.zoomOutPaintVertexArray && this.zoomOutPaintVertexArray.arrayBuffer) {
+        if (this.zoomInPaintVertexArray?.arrayBuffer.byteLength && this.zoomOutPaintVertexArray?.arrayBuffer.byteLength) {
             const attributes = this.getVertexAttributes();
             this.zoomInPaintVertexBuffer = context.createVertexBuffer(this.zoomInPaintVertexArray, attributes, this.expression.isStateDependent);
             this.zoomOutPaintVertexBuffer = context.createVertexBuffer(this.zoomOutPaintVertexArray, attributes, this.expression.isStateDependent);
@@ -564,7 +564,7 @@ export class ProgramConfiguration {
     updatePaintArrays(
         featureStates: FeatureStates,
         featureMap: FeaturePositionMap,
-        vtLayer: VectorTileLayer,
+        vtLayer: VectorTileLayerLike,
         layer: TypedStyleLayer,
         options: PaintOptions
     ): boolean {
@@ -728,7 +728,7 @@ export class ProgramConfigurationSet<Layer extends TypedStyleLayer> {
         this.needsUpload = true;
     }
 
-    updatePaintArrays(featureStates: FeatureStates, vtLayer: VectorTileLayer, layers: ReadonlyArray<TypedStyleLayer>, options: PaintOptions) {
+    updatePaintArrays(featureStates: FeatureStates, vtLayer: VectorTileLayerLike, layers: ReadonlyArray<TypedStyleLayer>, options: PaintOptions) {
         for (const layer of layers) {
             this.needsUpload = this.programConfigurations[layer.id].updatePaintArrays(featureStates, this._featureMap, vtLayer, layer, options) || this.needsUpload;
         }
